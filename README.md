@@ -7,12 +7,13 @@ in [Taking ROCKET on an Efficiency Mission: Multivariate Time Series Classificat
 If you find this work helpful in your research, consider citing our paper:
 
 ```
-@article{pantiskas2022lightwaves,
-  title={Taking ROCKET on an Efficiency Mission: Multivariate Time Series Classification with LightWaveS},
+@INPROCEEDINGS{pantiskas2022lightwaves,
   author={Pantiskas, Leonardos and Verstoep, Kees and Hoogendoorn, Mark and Bal, Henri},
-  journal={arXiv preprint arXiv:2204.01379},
-  year={2022}
-}
+  booktitle={2022 18th International Conference on Distributed Computing in Sensor Systems (DCOSS)}, 
+  title={{Taking ROCKET on an Efficiency Mission: Multivariate Time Series Classification with LightWaveS}}, 
+  year={2022},
+  pages={149-152},
+  doi={10.1109/DCOSS54816.2022.00036}}
 ```
 
 ## Requirements
