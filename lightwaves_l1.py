@@ -8,9 +8,9 @@ from sklearn.metrics import f1_score, accuracy_score
 warnings.filterwarnings("ignore")
 
 from lightwavesl1_functions import _generate_first_phase_kernels, _apply_kernels_feat_only
-from lightwaves_utils import ScalePerChannel, anova_feature_selection, mrmr_feature_selection, ScalePerChannelTrain
+from lightwaves_utils import ScalePerChannel, anova_feature_selection, mrmr_feature_selection, ScalePerChannelTrain, \
+    ckd_to_kernels, get_fixed_candidate_kernels, get_ckd_matrix_with_features
 from sklearn.linear_model import RidgeClassifierCV
-from sympy.utilities.iterables import multiset_permutations
 from mpi4py import MPI
 
 ## 4 features per scattering level
@@ -21,7 +21,7 @@ def transform(X, matrix, feat_mask, candidate_kernels, dilations):
     Transform input array to LightWaveS features
     :param X: The input timeseries array of dimension (samples,channels,timesteps)
     :param matrix: A channel-kernel-dilation 2d array of dimensions (n_kernels,3)
-    :param feat_mask: Feature mask of LightWaveS of dimension (n_kernels,8). Describes which features to keep from each kernel application
+    :param feat_mask: Feature mask of LightWaveS of dimension (n_kernels,features_number). Describes which features to keep from each kernel application
     :param candidate_kernels: The set of base kernels used by LightWaveS
     :param dilations: The set of base dilations used by LightWaveS
     :return: Transformed array of dimensions (samples,features)
@@ -29,55 +29,6 @@ def transform(X, matrix, feat_mask, candidate_kernels, dilations):
     kernels = ckd_to_kernels(matrix, candidate_kernels, dilations)
     feats = _apply_kernels_feat_only(X, kernels)
     return feats[:, feat_mask]
-
-
-def ckd_to_kernels(ckd, candidate_kernels, candidate_dilations):
-    """
-        :param ckd: A channel-kernel-dilation 2d array of dimensions (n_kernels,3)
-        :param candidate_kernels: The set of base kernels used by LightWaveS
-        :param candidate_dilations: The set of base dilations used by LightWaveS
-        :return: Tuple of kernels in format suitable for the core algorithm (similar to ROCKET)
-    """
-    num_channel_indices = np.ones(ckd.shape[0], dtype=np.int32)
-    channel_indices = ckd[:, 0]
-    biases = np.zeros_like(num_channel_indices, dtype=np.float32)
-    dilations = 2 ** candidate_dilations[ckd[:, 2]].flatten().astype(np.int32)
-    lengths = np.array([len(candidate_kernels[i]) for i in ckd[:, 1]], dtype=np.int32)
-    paddings = np.multiply((lengths - 1), dilations) // 2
-    weights = candidate_kernels[ckd[:, 1]].flatten().astype(np.float32)
-
-    return (
-        weights,
-        lengths,
-        biases,
-        dilations,
-        paddings,
-        num_channel_indices,
-        channel_indices,
-    )
-
-
-def get_ckd_matrix_with_features(fidx, num_channels, n_candidate_kernels, n_dilations, n_features):
-    """
-    During feature generation and selection, transform each feature index number to (channel,kernel,dimension,selected feature) format
-    :param fidx: Array of feature indices
-    :param num_channels: Number of channels designated to this node
-    :param n_candidate_kernels: The number of base kernels used by LightWaveS
-    :param n_dilations: The number of dilations used by LightWaveS
-    :param n_features: The number of features for this LightWaveS variant
-    :return: An array of dimension (n_features,4)
-    """
-    return np.unique(
-        np.array(np.unravel_index(fidx, (num_channels, n_candidate_kernels, n_dilations, n_features))).T,
-        axis=0).astype(np.int32)
-
-
-def get_fixed_candidate_kernels():
-    """
-        :return: The set of base kernels used by LightWaveS (same as that of MINIROCKET)
-    """
-    kernel_set = np.array([np.array(p) for p in multiset_permutations(([2] * 3 + [-1] * 6))], dtype=np.float32)
-    return kernel_set
 
 
 ## Development dataset indices (randomly generated once)

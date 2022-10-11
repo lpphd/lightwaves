@@ -2,6 +2,9 @@ from numba import njit, prange
 from sklearn.feature_selection import VarianceThreshold, f_classif
 import numpy as np
 from scipy.stats import rankdata
+from sympy.utilities.iterables import multiset_permutations
+
+from lightwavesl1l2_functions import _apply_2layer_kernels
 
 
 def ScalePerChannel(train_x, test_x):
@@ -150,3 +153,52 @@ def anova_feature_selection(X, y, N=100):
     or_idx[np.where(var_mask)[0][idces]] = True
     idces = np.where(or_idx)[0].astype(np.int32)
     return idces, scores
+
+
+def ckd_to_kernels(ckd, candidate_kernels, candidate_dilations):
+    """
+        :param ckd: A channel-kernel-dilation 2d array of dimensions (n_kernels,3)
+        :param candidate_kernels: The set of base kernels used by LightWaveS
+        :param candidate_dilations: The set of base dilations used by LightWaveS
+        :return: Tuple of kernels in format suitable for the core algorithm (similar to ROCKET)
+    """
+    num_channel_indices = np.ones(ckd.shape[0], dtype=np.int32)
+    channel_indices = ckd[:, 0]
+    biases = np.zeros_like(num_channel_indices, dtype=np.float32)
+    dilations = 2 ** candidate_dilations[ckd[:, 2]].flatten().astype(np.int32)
+    lengths = np.array([len(candidate_kernels[i]) for i in ckd[:, 1]], dtype=np.int32)
+    paddings = np.multiply((lengths - 1), dilations) // 2
+    weights = candidate_kernels[ckd[:, 1]].flatten().astype(np.float32)
+
+    return (
+        weights,
+        lengths,
+        biases,
+        dilations,
+        paddings,
+        num_channel_indices,
+        channel_indices,
+    )
+
+
+def get_ckd_matrix_with_features(fidx, num_channels, n_candidate_kernels, n_dilations, n_features):
+    """
+    During feature generation and selection, transform each feature index number to (channel,kernel,dimension,selected feature) format
+    :param fidx: Array of feature indices
+    :param num_channels: Number of channels designated to this node
+    :param n_candidate_kernels: The number of base kernels used by LightWaveS
+    :param n_dilations: The number of dilations used by LightWaveS
+    :param n_features: The number of features for this LightWaveS variant
+    :return: An array of dimension (len(fidx),n_features)
+    """
+    return np.unique(
+        np.array(np.unravel_index(fidx, (num_channels, n_candidate_kernels, n_dilations, n_features))).T,
+        axis=0).astype(np.int32)
+
+
+def get_fixed_candidate_kernels():
+    """
+        :return: The set of base kernels used by LightWaveS (same as that of MINIROCKET)
+    """
+    kernel_set = np.array([np.array(p) for p in multiset_permutations(([2] * 3 + [-1] * 6))], dtype=np.float32)
+    return kernel_set
