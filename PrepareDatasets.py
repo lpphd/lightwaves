@@ -15,7 +15,7 @@ def prepare_mafaulda():
             glob.glob(F"../full/{conditions[i]}/*/*.csv")) + sorted(glob.glob(F"../full/{conditions[i]}/*/*/*.csv"))
         samples = 0
         for filename in filenames:
-            df = pd.read_csv(filename, header=None).values[::250, :].reshape((1, 8, -1))
+            df = pd.read_csv(filename, header=None).values[::250, :].T.reshape((1, 8, -1))
             data.append(df)
             samples += 1
         labels.append(np.ones(samples) * i)
@@ -54,7 +54,7 @@ def prepare_turbofan():
             machine_data = train_ds[train_ds[:, 0] == n + 1]
             max_cycles = max(machine_data[:, 1])
             for i in range(machine_data.shape[0] - min_common_test_len):
-                train_data.append(machine_data[i:i + min_common_test_len, :].reshape((1, -1, min_common_test_len)))
+                train_data.append(machine_data[i:i + min_common_test_len, :].T.reshape((1, -1, min_common_test_len)))
                 train_labels.append(int(max_cycles - machine_data[i + min_common_test_len, 1]))
         train_x = np.concatenate(train_data, axis=0)
         train_y = np.array(train_labels)
@@ -72,7 +72,7 @@ def prepare_turbofan():
             machine_data = test_ds[test_ds[:, 0] == n + 1]
             max_cycles = max(machine_data[:, 1]) + test_ds_labels[n]
             for i in range(machine_data.shape[0] - min_common_test_len):
-                test_data.append(machine_data[i:i + min_common_test_len, :].reshape((1, -1, min_common_test_len)))
+                test_data.append(machine_data[i:i + min_common_test_len, :].T.reshape((1, -1, min_common_test_len)))
                 test_labels.append(int(max_cycles - machine_data[i + min_common_test_len, 1]))
         test_x = np.concatenate(test_data, axis=0)
         test_y = np.array(test_labels)
